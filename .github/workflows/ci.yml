@@ -29,7 +29,7 @@ jobs:
 
       - name: API unit tests
         if: github.event.repository.name == 'saas-platform-api'
-        run: npm test -- --runInBand
+        run: npm test
 
       - name: Web lint
         if: github.event.repository.name == 'saas-platform-web'
