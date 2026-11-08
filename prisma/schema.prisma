@@ -1,0 +1,54 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Template {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String
+  createdById    String
+
+  name          String
+  description   String @default("")
+  metadata      Json   @default("{}") @db.JsonB
+  fields        Json   @default("[]") @db.JsonB
+  draftRevision Int    @default(1)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  versions TemplateVersion[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, updatedAt])
+  @@map("templates")
+}
+
+model TemplateVersion {
+  id             String @id @default(uuid()) @db.Uuid
+  templateId     String @db.Uuid
+  organizationId String
+
+  version             Int
+  sourceDraftRevision Int
+
+  name        String
+  description String @default("")
+  metadata    Json   @db.JsonB
+  fields      Json   @db.JsonB
+
+  publishedById String
+  publishedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  template Template @relation(fields: [templateId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([templateId, version])
+  @@unique([templateId, sourceDraftRevision])
+  @@index([organizationId, publishedAt])
+  @@map("template_versions")
+}
