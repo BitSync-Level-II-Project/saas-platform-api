@@ -12,11 +12,28 @@ import { CreateTemplateDto } from './dto/create-template.dto.js';
 import { ListTemplatesDto } from './dto/list-templates.dto.js';
 import { TemplatesService } from './templates.service.js';
 import { UpdateTemplateDto } from './dto/update-template.dto.js';
+import { PublishTemplateDto } from './dto/publish-template.dto.js';
 @Controller('templates')
 export class TemplatesController {
   constructor(
     private readonly templatesService: TemplatesService,
   ) {}
+    @Post(':id/publish')
+  publish(
+    @Param('id', new ParseUUIDPipe({ version: '4' }))
+    id: string,
+    @Body() dto: PublishTemplateDto,
+  ) {
+    return this.templatesService.publish(id, dto);
+  }
+
+  @Get(':id/published')
+  findPublished(
+    @Param('id', new ParseUUIDPipe({ version: '4' }))
+    id: string,
+  ) {
+    return this.templatesService.findPublished(id);
+  }
 
   @Post()
   createDraft(@Body() dto: CreateTemplateDto) {
