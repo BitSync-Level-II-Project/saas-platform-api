@@ -40,6 +40,9 @@ export class UpdateWarehouseDto {
   @MaxLength(100)
   supervisor?: string;
 
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @IsOptional()
   @IsEnum(SiteStatus)
   status?: SiteStatus;
