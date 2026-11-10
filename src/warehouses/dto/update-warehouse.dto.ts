@@ -1,49 +1,52 @@
 import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsOptional,
+  IsNotEmpty,
   IsString,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { SiteStatus } from '../../generated/prisma/enums.js';
 
 export class UpdateWarehouseDto {
+  @ValidateIf((_, value) => value !== undefined)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   name?: string;
 
+  @ValidateIf((_, value) => value !== undefined)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   city?: string;
 
+  @ValidateIf((_, value) => value !== undefined && value !== null)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
   @MaxLength(255)
-  address?: string;
+  address?: string | null;
 
+  @ValidateIf((_, value) => value !== undefined && value !== null)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
   @MaxLength(100)
-  supervisor?: string;
+  supervisor?: string | null;
 
+  @ValidateIf((_, value) => value !== undefined)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
-  @IsOptional()
   @IsEnum(SiteStatus)
   status?: SiteStatus;
 }

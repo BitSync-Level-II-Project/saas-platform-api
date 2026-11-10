@@ -1,9 +1,9 @@
 import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateWarehouseDto {
@@ -23,19 +23,19 @@ export class CreateWarehouseDto {
   @MaxLength(100)
   city!: string;
 
+  @ValidateIf((_, value) => value !== undefined && value !== null)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
   @MaxLength(255)
-  address?: string;
+  address?: string | null;
 
+  @ValidateIf((_, value) => value !== undefined && value !== null)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsOptional()
   @IsString()
   @MaxLength(100)
-  supervisor?: string;
+  supervisor?: string | null;
 }
