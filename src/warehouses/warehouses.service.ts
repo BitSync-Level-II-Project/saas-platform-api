@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateWarehouseDto } from './dto/create-warehouse.dto.js';
@@ -13,11 +17,27 @@ export class WarehousesService {
   ) {}
 
   private getDevelopmentContext() {
-    const organizationId =
-      this.config.get<string>('DEV_ORGANIZATION_ID')?.trim() ??
-      'local-demo-org';
-    const userId =
-      this.config.get<string>('DEV_USER_ID')?.trim() ?? 'local-demo-manager';
+    const enabled =
+      this.config.get<string>('NODE_ENV') === 'development' &&
+      this.config.get<string>('ENABLE_WAREHOUSE_DEV_API') === 'true';
+
+    if (!enabled) {
+      throw new NotFoundException();
+    }
+
+    const organizationId = this.config
+      .get<string>('DEV_ORGANIZATION_ID')
+      ?.trim();
+
+    const userId = this.config
+      .get<string>('DEV_USER_ID')
+      ?.trim();
+
+    if (!organizationId || !userId) {
+      throw new ServiceUnavailableException(
+        'Warehouse development context is not configured.',
+      );
+    }
 
     return { organizationId, userId };
   }
@@ -70,7 +90,7 @@ export class WarehousesService {
     };
   }
 
-  // 2. Get a single warehouse by ID
+  // 2. Get a single warehouse by ID (multi-tenant safe)
   async findOne(id: string) {
     const context = this.getDevelopmentContext();
 
@@ -106,10 +126,13 @@ export class WarehousesService {
       data: {
         organizationId: context.organizationId,
         createdById: context.userId,
-        name: dto.name,
-        city: dto.city,
-        address: dto.address?.trim() ?? '',
-        supervisor: dto.supervisor?.trim() || 'Unassigned',
+        name: dto.name.trim(),
+        city: dto.city.trim(),
+        address: typeof dto.address === 'string' ? dto.address.trim() : '',
+        supervisor:
+          typeof dto.supervisor === 'string' && dto.supervisor.trim()
+            ? dto.supervisor.trim()
+            : 'Unassigned',
         status: 'ACTIVE',
       },
     });
@@ -142,11 +165,21 @@ export class WarehousesService {
         },
       },
       data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.city !== undefined ? { city: dto.city } : {}),
-        ...(dto.address !== undefined ? { address: dto.address.trim() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.city !== undefined ? { city: dto.city.trim() } : {}),
+        ...(dto.address !== undefined
+          ? {
+              address:
+                typeof dto.address === 'string' ? dto.address.trim() : '',
+            }
+          : {}),
         ...(dto.supervisor !== undefined
-          ? { supervisor: dto.supervisor.trim() || 'Unassigned' }
+          ? {
+              supervisor:
+                typeof dto.supervisor === 'string' && dto.supervisor.trim()
+                  ? dto.supervisor.trim()
+                  : 'Unassigned',
+            }
           : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
       },
