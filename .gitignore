@@ -1,9 +1,29 @@
-node_modules
+# Dependencies and generated output
+node_modules/
+/dist/
+/coverage/
+/src/generated/prisma/
+*.tsbuildinfo
 
+# Environment and local credentials
 .env
 .env.*
 !.env.example
-/src/generated/prisma
-/dist
-coverage/
-*.tsbuildinfo
+/.aws/
+
+# Local editor settings
+/.vscode/
+/.idea/
+
+# Locally installed AI assistant tools
+/.agents/
+/.claude/
+/.codex/
+/.windsurf/
+/skills-lock.json
+
+# Logs and operating system files
+logs/
+*.log
+.DS_Store
+Thumbs.db

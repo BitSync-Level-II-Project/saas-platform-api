@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -28,4 +29,7 @@ export class ListTemplatesDto {
   @IsString()
   @MaxLength(150)
   search?: string;
+
+  @IsIn(['all', 'draft', 'published'])
+  status: 'all' | 'draft' | 'published' = 'all';
 }
