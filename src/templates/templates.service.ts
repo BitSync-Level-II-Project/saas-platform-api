@@ -87,6 +87,7 @@ export class TemplatesService {
       id: template.id,
       status,
       draftRevision: template.draftRevision,
+      fieldCount: Array.isArray(template.fields) ? template.fields.length : 0,
       version: latestVersion?.version ?? null,
       publishedAt: latestVersion?.publishedAt ?? null,
       details: {
