@@ -164,20 +164,31 @@ export class TemplatesService {
 
   async findAll(query: ListTemplatesDto) {
     const context = this.getDevelopmentContext();
-    const { page, limit, search } = query;
+    const { page, limit, search, status } = query;
+
+    const where: Prisma.TemplateWhereInput = {
+      organizationId: context.organizationId,
+    };
+
+    if (search) {
+      where.name = {
+        contains: search,
+        mode: 'insensitive',
+      };
+    }
+
+    if (status === 'draft') {
+      where.versions = {
+        none: {},
+      };
+    } else if (status === 'published') {
+      where.versions = {
+        some: {},
+      };
+    }
 
     const templates = await this.prisma.template.findMany({
-      where: {
-        organizationId: context.organizationId,
-        ...(search
-          ? {
-              name: {
-                contains: search,
-                mode: 'insensitive' as const,
-              },
-            }
-          : {}),
-      },
+      where,
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       skip: (page - 1) * limit,
       take: limit + 1,
