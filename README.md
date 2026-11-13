@@ -25,6 +25,14 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## SiteTrace API branch workflow
+
+- Start new backend feature branches from `chore/api-foundation`.
+- Push your changes to your own feature branch.
+- Open a pull request with `chore/api-foundation` as the base.
+- Ask a teammate to review the PR and wait for API CI to pass before merging.
+- Use `main` for tested project milestones.
+
 ## Project setup
 
 ```bash
