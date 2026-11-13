@@ -1,0 +1,589 @@
+{
+  "info": {
+    "name": "SiteTrace - PDF template API verification",
+    "description": "Run requests in numeric order against the development API. Each run creates one uniquely named QA template and publishes it. IDs and revisions are captured automatically. Expected 400 and 409 responses are successful negative tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "siteTraceTemplateId",
+      "value": ""
+    },
+    {
+      "key": "siteTraceRevision",
+      "value": ""
+    },
+    {
+      "key": "siteTraceStaleRevision",
+      "value": ""
+    },
+    {
+      "key": "siteTraceTemplateName",
+      "value": ""
+    },
+    {
+      "key": "siteTraceSnapshot",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Create a fresh draft",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{siteTraceTemplateName}}\",\n  \"description\": \"Template status filtering verification\",\n  \"industry\": \"Logistics\",\n  \"process\": \"Inspection\",\n  \"warehouse\": \"colombo\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"siteTraceTemplateName\", \"QA Status Filter Inspection \" + pm.variables.replaceIn(\"{{$guid}}\"));",
+              "[\"siteTraceTemplateId\", \"siteTraceRevision\", \"siteTraceStaleRevision\", \"siteTraceSnapshot\"].forEach(key => pm.collectionVariables.unset(key));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const draft = pm.response.json();",
+              "pm.test(\"New draft\", () => { pm.expect(draft.status).to.eql(\"draft\"); pm.expect(draft.draftRevision).to.eql(1); });",
+              "if (pm.response.code === 201) { pm.collectionVariables.set(\"siteTraceTemplateId\", draft.id); pm.collectionVariables.set(\"siteTraceRevision\", draft.draftRevision); pm.collectionVariables.set(\"siteTraceStaleRevision\", draft.draftRevision); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Read the new draft",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct draft and revision\", () => { const draft = pm.response.json(); pm.expect(draft.id).to.eql(pm.collectionVariables.get('siteTraceTemplateId')); pm.expect(draft.draftRevision).to.eql(Number(pm.collectionVariables.get(\"siteTraceRevision\"))); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 List without status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"List response\", () => pm.expect(pm.response.json().items).to.be.an(\"array\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 List all statuses",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=all"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 List drafts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=draft&search={{siteTraceTemplateName}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only draft templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"draft\")).to.eql(true));",
+              "pm.test(\"Contains our draft\", () => pm.expect(pm.response.json().items.map(item => item.id)).to.include(pm.collectionVariables.get('siteTraceTemplateId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Draft excluded from published list",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=published&search={{siteTraceTemplateName}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only published templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"published\")).to.eql(true));",
+              "pm.test(\"Does not contain our draft\", () => pm.expect(pm.response.json().items.map(item => item.id)).not.to.include(pm.collectionVariables.get('siteTraceTemplateId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Invalid status is rejected",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=invalid"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Paginated drafts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=draft&page=1&limit=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only draft templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"draft\")).to.eql(true));",
+              "pm.test(\"At most one record\", () => pm.expect(pm.response.json().items.length).to.be.at.most(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Published inspection search",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=published&search=inspection"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only published templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"published\")).to.eql(true));",
+              "pm.test(\"Names match search\", () => pm.expect(pm.response.json().items.every(item => item.details.name.toLowerCase().includes(\"inspection\"))).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Missing PATCH fields are rejected",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Save draft fields",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expectedRevision\": {{siteTraceRevision}},\n  \"details\": {\n    \"name\": \"{{siteTraceTemplateName}}\",\n    \"description\": \"Template status filtering verification\",\n    \"industry\": \"Logistics\",\n    \"process\": \"Inspection\",\n    \"warehouse\": \"colombo\"\n  },\n  \"fields\": [\n    {\n      \"id\": \"inspection-note\",\n      \"type\": \"short-text\",\n      \"label\": \"Inspection note\",\n      \"required\": true\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const saved = pm.response.json();",
+              "pm.test(\"Revision incremented\", () => pm.expect(saved.draftRevision).to.eql(Number(pm.collectionVariables.get(\"siteTraceStaleRevision\")) + 1));",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"siteTraceRevision\", saved.draftRevision);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Stale save is rejected",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expectedRevision\": {{siteTraceStaleRevision}},\n  \"details\": {\n    \"name\": \"{{siteTraceTemplateName}}\",\n    \"description\": \"Template status filtering verification\",\n    \"industry\": \"Logistics\",\n    \"process\": \"Inspection\",\n    \"warehouse\": \"colombo\"\n  },\n  \"fields\": [\n    {\n      \"id\": \"inspection-note\",\n      \"type\": \"short-text\",\n      \"label\": \"Inspection note\",\n      \"required\": true\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Stale publish is rejected",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}/publish",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expectedRevision\": {{siteTraceStaleRevision}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Publish the saved revision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}/publish",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expectedRevision\": {{siteTraceRevision}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const snapshot = pm.response.json();",
+              "pm.test(\"Published snapshot\", () => { pm.expect(snapshot.status).to.eql(\"published\"); pm.expect(snapshot.sourceDraftRevision).to.eql(Number(pm.collectionVariables.get(\"siteTraceRevision\"))); });",
+              "if (pm.response.code === 201) pm.collectionVariables.set(\"siteTraceSnapshot\", JSON.stringify(snapshot));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Read published preview",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}/published"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Matches the published snapshot\", () => pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"siteTraceSnapshot\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Published template excluded from drafts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=draft&search={{siteTraceTemplateName}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only draft templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"draft\")).to.eql(true));",
+              "pm.test(\"Draft list excludes published template\", () => pm.expect(pm.response.json().items.map(item => item.id)).not.to.include(pm.collectionVariables.get('siteTraceTemplateId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Published template included in published list",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates?status=published&search={{siteTraceTemplateName}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Only published templates\", () => pm.expect(pm.response.json().items.every(item => item.status === \"published\")).to.eql(true));",
+              "pm.test(\"Published list includes template\", () => pm.expect(pm.response.json().items.map(item => item.id)).to.include(pm.collectionVariables.get('siteTraceTemplateId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Published edits are rejected",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expectedRevision\": {{siteTraceRevision}},\n  \"details\": {\n    \"name\": \"{{siteTraceTemplateName}}\",\n    \"description\": \"Template status filtering verification\",\n    \"industry\": \"Logistics\",\n    \"process\": \"Inspection\",\n    \"warehouse\": \"colombo\"\n  },\n  \"fields\": [\n    {\n      \"id\": \"inspection-note\",\n      \"type\": \"short-text\",\n      \"label\": \"Inspection note\",\n      \"required\": true\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Repeat publication is rejected",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}/publish",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expectedRevision\": {{siteTraceRevision}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Snapshot remains unchanged",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/templates/{{siteTraceTemplateId}}/published"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Snapshot is immutable\", () => pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"siteTraceSnapshot\"))));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
