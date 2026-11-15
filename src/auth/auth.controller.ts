@@ -1,14 +1,23 @@
 import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { IsString, IsEmail, IsOptional } from 'class-validator';
 import { MailService } from '../mail/mail.service.js';
 
-class InviteManagerDto {
+export class InviteManagerDto {
+  @IsString()
   name: string;
+
+  @IsEmail()
   email: string;
+
+  @IsString()
   workspaceCode: string;
+
+  @IsOptional()
+  @IsString()
   activationUrl?: string;
 }
 
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly mailService: MailService) {}
 

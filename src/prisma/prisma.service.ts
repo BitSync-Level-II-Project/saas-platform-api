@@ -28,11 +28,15 @@ export class PrismaService
   }
 
   async onModuleInit(): Promise<void> {
-    await this.$connect();
-
-    await this.$queryRaw`SELECT 1`;
-
-    this.logger.log('Database connection verified');
+    try {
+      await this.$connect();
+      await this.$queryRaw`SELECT 1`;
+      this.logger.log('Database connection verified');
+    } catch (err: any) {
+      this.logger.warn(
+        `PostgreSQL database not reachable (${err.message}). Starting server in non-blocking mode.`
+      );
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
