@@ -26,14 +26,21 @@ server context, not from client claims.
 
 These endpoints are proposed and are not implemented yet.
 
-## Decisions to agree
+## Confirmed business rules
 
-- Must every submission belong to a task?
-- Who can submit and who can review?
-- What do approve, reject and recheck mean?
-- How does each review decision affect task status?
-- Is a correction a new attempt or an edit?
-- Are evidence uploads required in the first milestone?
+- Managers create forms.
+- Supervisors create tasks using published forms.
+- Workers submit only against tasks assigned to them.
+- Only supervisors can approve or reject submissions.
+- Each task has one submission record.
+- Each submission can have multiple attempts.
+- Sending an attempt moves the task to In review.
+- Approval moves the task to Complete.
+- Rejection moves the task back to In progress.
+- After rejection, the worker sends a new attempt.
+- Previous attempts and reviews remain in history.
+- Approved submissions cannot receive another attempt
+  under this workflow.
 
 ## Required checks
 
