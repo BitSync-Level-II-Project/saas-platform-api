@@ -45,6 +45,7 @@ describe('CreateLocationDto validation', () => {
     expect(dto.name).toBe('Machine Bay 4');
     expect(dto.description).toBe('Heavy equipment sector');
   });
+  
 
   it('should reject a missing name', async () => {
     const plain = {};
