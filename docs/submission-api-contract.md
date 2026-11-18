@@ -9,10 +9,25 @@ Tasks and Collected Data must use the same submission records.
 
 ## Proposed input
 
-- clientSubmissionId: reused when retrying the same submission.
-- templateVersionId: the published template response's versionId.
-- taskId: format and requiredness to be agreed with the Task owner.
+- clientAttemptId: a UUID v4 generated once for each new attempt.
+  Reuse the same ID when retrying that attempt.
+- templateVersionId: must match the published version linked to the task.
+- taskId: required; must identify a task assigned to the submitting worker.
 - answers: fieldId and typed value.
+
+## Retry and duplicate prevention
+
+- Generate clientAttemptId once when a new attempt is prepared.
+- Retrying the same attempt must reuse its ID and payload.
+- Preserve the ID and payload while a request is awaiting confirmation.
+- A correction after rejection is a new attempt and gets a new ID.
+- The server must not create another record for an identical retry.
+- The first successful creation returns 201.
+- An authorized identical retry returns the existing result with 200.
+- Reusing an ID with different task, version or answers returns 409.
+- A retry of an already saved attempt must not create another attempt,
+  even if that task has since been approved.
+- Identity and organization come from trusted server context.
 
 Organization and submitter identity must come from trusted
 server context, not from client claims.
