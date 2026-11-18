@@ -46,7 +46,7 @@ model TemplateVersion {
   publishedAt   DateTime @default(now()) @db.Timestamptz(3)
 
   template Template @relation(fields: [templateId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
-
+  tasks Task[]
   @@unique([templateId, version])
   @@unique([templateId, sourceDraftRevision])
   @@index([organizationId, publishedAt])
@@ -76,4 +76,49 @@ model Warehouse {
   @@index([organizationId, status])
   @@index([organizationId, updatedAt])
   @@map("warehouses")
+}
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETE
+}
+
+enum AssigneeType {
+  WORKER
+  STATIONED_PHONE
+}
+
+model Task {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String
+  createdById    String?
+
+  // Display code is TSK-(1000 + number), for example number 42 -> TSK-1042
+  number Int @unique @default(autoincrement())
+
+  title             String
+  warehouse         String
+  location          String
+  templateVersionId String     @db.Uuid
+  supervisorId      String
+  dueDate           DateTime   @db.Date
+  instructions      String     @default("")
+  status            TaskStatus @default(ASSIGNED)
+
+  assigneeType AssigneeType?
+  assigneeId   String?
+
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+
+  templateVersion TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, assigneeId])
+  @@index([templateVersionId])
+  @@map("tasks")
 }
