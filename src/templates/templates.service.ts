@@ -407,4 +407,24 @@ export class TemplatesService {
 
     return this.toPublishedResponse(version);
   }
+
+  async findPublishedVersionForTask(
+    context: { organizationId: string; templateVersionId: string },
+    db: Pick<Prisma.TransactionClient, 'templateVersion'> = this.prisma,
+  ) {
+    const version = await db.templateVersion.findUnique({
+      where: {
+        id_organizationId: {
+          id: context.templateVersionId,
+          organizationId: context.organizationId,
+        },
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('Published template version not found.');
+    }
+
+    return this.toPublishedResponse(version);
+  }
 }
