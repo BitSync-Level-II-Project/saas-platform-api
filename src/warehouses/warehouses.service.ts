@@ -65,6 +65,11 @@ export class WarehousesService {
       this.prisma.warehouse.count({ where }),
       this.prisma.warehouse.findMany({
         where,
+        include: {
+          _count: {
+            select: { locations: true },
+          },
+        },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
@@ -79,7 +84,7 @@ export class WarehousesService {
         address: w.address ?? '',
         supervisor: w.supervisor,
         status: w.status === 'ACTIVE' ? 'Active' : 'Inactive',
-        locations: 0,
+        locations: (w as any)._count?.locations ?? 0,
         createdAt: w.createdAt,
         updatedAt: w.updatedAt,
       })),
@@ -99,6 +104,11 @@ export class WarehousesService {
         id,
         organizationId: context.organizationId,
       },
+      include: {
+        _count: {
+          select: { locations: true },
+        },
+      },
     });
 
     if (!warehouse) {
@@ -112,7 +122,7 @@ export class WarehousesService {
       address: warehouse.address ?? '',
       supervisor: warehouse.supervisor,
       status: warehouse.status === 'ACTIVE' ? 'Active' : 'Inactive',
-      locations: 0,
+      locations: (warehouse as any)._count?.locations ?? 0,
       createdAt: warehouse.createdAt,
       updatedAt: warehouse.updatedAt,
     };
@@ -164,6 +174,11 @@ export class WarehousesService {
           organizationId: context.organizationId,
         },
       },
+      include: {
+        _count: {
+          select: { locations: true },
+        },
+      },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.city !== undefined ? { city: dto.city.trim() } : {}),
@@ -192,7 +207,7 @@ export class WarehousesService {
       address: warehouse.address ?? '',
       supervisor: warehouse.supervisor,
       status: warehouse.status === 'ACTIVE' ? 'Active' : 'Inactive',
-      locations: 0,
+      locations: (warehouse as any)._count?.locations ?? 0,
       createdAt: warehouse.createdAt,
       updatedAt: warehouse.updatedAt,
     };

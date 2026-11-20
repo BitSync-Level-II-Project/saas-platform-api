@@ -74,10 +74,33 @@ model Warehouse {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
+  locations Location[]
+
   @@unique([id, organizationId])
   @@index([organizationId, status])
   @@index([organizationId, updatedAt])
   @@map("warehouses")
+}
+
+model Location {
+  id             String     @id @default(uuid()) @db.Uuid
+  warehouseId    String     @db.Uuid
+  organizationId String
+
+  name           String
+  description    String?    @default("")
+  assignedWork   String     @default("0 tasks")
+  status         SiteStatus @default(ACTIVE)
+
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
+
+  warehouse      Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([warehouseId, status])
+  @@index([organizationId, warehouseId])
+  @@map("locations")
 }
 
 enum SubmissionReviewDecision {
