@@ -6,6 +6,9 @@ import type { TestingModule } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaModule } from '../src/prisma/prisma.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { NotFoundException } from '@nestjs/common';
+import { TemplatesModule } from '../src/templates/templates.module.js';
+import { TemplatesService } from '../src/templates/templates.service.js';
 
 const organizationId = `storage-test-${randomUUID()}`;
 const otherOrganizationId = `storage-other-${randomUUID()}`;
@@ -13,14 +16,20 @@ const otherOrganizationId = `storage-other-${randomUUID()}`;
 describe('Submission storage with PostgreSQL', () => {
   let testModule: TestingModule | undefined;
   let prisma: PrismaService;
+  let templates: TemplatesService;
   let templateVersionId: string;
 
   beforeAll(async () => {
     testModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        PrismaModule,
+        TemplatesModule,
+      ],
     }).compile();
 
     prisma = testModule.get(PrismaService);
+    templates = testModule.get(TemplatesService);
     await testModule.init();
 
     const template = await prisma.template.create({
@@ -126,7 +135,6 @@ describe('Submission storage with PostgreSQL', () => {
         },
       });
     }
-
     const saved = await prisma.submission.findFirstOrThrow({
       where: {
         id: submission.id,
@@ -155,6 +163,45 @@ describe('Submission storage with PostgreSQL', () => {
     expect(saved.attempts[0].answers).toEqual([
       { fieldId: 'reading', value: 21 },
     ]);
+  });
+
+  it('loads the pinned version even after a newer version is published', async () => {
+    const original = await prisma.templateVersion.findUniqueOrThrow({
+      where: { id: templateVersionId },
+    });
+
+    await prisma.templateVersion.create({
+      data: {
+        templateId: original.templateId,
+        organizationId,
+        version: 2,
+        sourceDraftRevision: 2,
+        name: 'Updated inspection',
+        metadata: {},
+        fields: [],
+        publishedById: 'fixture-manager',
+      },
+    });
+
+    await expect(
+      templates.findPublishedVersionForTask({
+        organizationId,
+        templateVersionId,
+      }),
+    ).resolves.toMatchObject({
+      versionId: templateVersionId,
+      version: 1,
+      fields: [{ id: 'reading', type: 'number' }],
+    });
+  });
+
+  it('does not return a version from another organization', async () => {
+    await expect(
+      templates.findPublishedVersionForTask({
+        organizationId: otherOrganizationId,
+        templateVersionId,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects a second submission for the same task', async () => {
