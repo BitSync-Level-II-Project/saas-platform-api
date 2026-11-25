@@ -23,4 +23,4 @@ CREATE INDEX "locations_warehouseId_status_idx" ON "locations"("warehouseId", "s
 CREATE INDEX "locations_organizationId_warehouseId_idx" ON "locations"("organizationId", "warehouseId");
 
 -- AddForeignKey
-ALTER TABLE "locations" ADD CONSTRAINT "locations_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "locations" ADD CONSTRAINT "locations_warehouseId_organizationId_fkey" FOREIGN KEY ("warehouseId", "organizationId") REFERENCES "warehouses"("id", "organizationId") ON DELETE CASCADE ON UPDATE CASCADE;

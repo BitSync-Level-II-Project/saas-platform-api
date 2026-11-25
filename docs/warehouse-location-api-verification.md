@@ -23,13 +23,13 @@ All paths are relative to `http://localhost:3000/api/v1`.
 
 | Method | Path | Expected Behavior |
 | :--- | :--- | :--- |
-| `GET` | `/warehouses` | `200`, lists warehouses with pagination and live `locationCount` |
+| `GET` | `/warehouses` | `200`, lists warehouses with pagination and live `locations` count |
 | `GET` | `/warehouses?status=all` | `200`, returns all warehouses regardless of status |
 | `GET` | `/warehouses?status=active` | `200`, filters active warehouses |
 | `GET` | `/warehouses?status=inactive` | `200`, filters inactive warehouses |
 | `GET` | `/warehouses?search=colombo` | `200`, case-insensitive search by name, city, or supervisor |
 | `GET` | `/warehouses?page=1&limit=5` | `200`, returns paginated items with pagination metadata |
-| `GET` | `/warehouses/:id` | `200`, returns single warehouse details with live `locationCount` |
+| `GET` | `/warehouses/:id` | `200`, returns single warehouse details with live `locations` count |
 | `GET` | `/warehouses/:id` (invalid UUID) | `400`, validates UUID parameter |
 | `GET` | `/warehouses/:id` (non-existent) | `404`, warehouse not found |
 | `POST` | `/warehouses` | `201`, creates a new warehouse record |
@@ -55,12 +55,13 @@ Locations are strictly nested sub-resources under their parent warehouse (`/ware
 
 ## Business & Technical Rules
 
-1. **Multi-Tenant Isolation**:
+1. **Multi-Tenant Isolation & Database Integrity**:
    - Every warehouse and location query is scoped to the requesting tenant's `organizationId`.
    - Accessing a warehouse or location belonging to another tenant returns `404 Not Found`.
+   - The database enforces tenant matching at the schema level: `Location` references `Warehouse` via a composite foreign key `(warehouseId, organizationId) REFERENCES warehouses(id, organizationId) ON DELETE CASCADE`. Mismatched organization associations are rejected directly by PostgreSQL constraint.
 
 2. **Live Location Count Aggregation**:
-   - The warehouse list and warehouse detail endpoints calculate live location counts using Prisma `_count: { select: { locations: true } }`. No client-side counts or localStorage counters are used.
+   - The warehouse list and warehouse detail endpoints calculate live location counts using Prisma `_count: { select: { locations: true } }` and return them via the `locations` response field. No client-side counts or localStorage counters are used.
 
 3. **Cascade Deletion**:
    - Deleting a parent warehouse automatically cascades and deletes all locations associated with that warehouse via the database foreign key constraint (`onDelete: Cascade`).

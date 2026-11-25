@@ -327,5 +327,28 @@ describe('Warehouse & Location API E2E (PostgreSQL)', () => {
         .delete(`${warehouseBase}/${otherTenantWarehouse.id}`)
         .expect(404);
     });
+
+    it('rejects a location linked to a warehouse from another organization at the database level', async () => {
+      // Create a warehouse belonging to the primary test organization
+      const wh = await prisma.warehouse.create({
+        data: {
+          name: 'Primary Org Warehouse',
+          city: 'Colombo',
+          organizationId,
+        },
+      });
+
+      // Attempting to directly insert a location with a mismatched organizationId
+      // must be rejected by the composite foreign key constraint in PostgreSQL
+      await expect(
+        prisma.location.create({
+          data: {
+            name: 'Mismatched Org Location',
+            warehouseId: wh.id,
+            organizationId: otherOrganizationId,
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+    });
   });
 });
