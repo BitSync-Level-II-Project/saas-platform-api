@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "Severity" AS ENUM ('INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
 
 -- CreateEnum

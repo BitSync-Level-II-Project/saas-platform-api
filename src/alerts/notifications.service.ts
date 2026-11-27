@@ -2,7 +2,7 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditLogsService } from './audit-logs.service.js';
 import type {
-  NotificationStatus,
+  NotifStatus,
   Severity,
   TenantContext,
 } from './types.js';
@@ -19,7 +19,7 @@ export interface CreateNotificationParams {
   body: string;
   severity?: Severity;
   alertId?: string;
-  status?: NotificationStatus;
+  status?: NotifStatus;
 }
 
 @Injectable()

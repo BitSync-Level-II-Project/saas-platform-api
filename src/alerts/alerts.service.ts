@@ -118,7 +118,7 @@ export class AlertsService {
     const move = ALLOWED_MOVES[action];
     if (!move || !move.from.includes(alert.status as AlertStatus)) {
       throw new ConflictException(
-        Cannot  an alert with status .,
+        `Cannot ${action} an alert with status ${alert.status}.`,
       );
     }
 
@@ -130,7 +130,7 @@ export class AlertsService {
       throw new BadRequestException('A reason is required when escalating an alert.');
     }
 
-    const updated = await this.prisma.(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updatedAlert = await tx.alert.update({
         where: { id: alert.id },
         data: {
@@ -179,8 +179,8 @@ export class AlertsService {
         organizationId: context.organizationId,
         recipientId: 'u-manager',
         type: 'ALERT_ESCALATED',
-        title: ${updated.title} escalated,
-        body: Escalated by : ,
+        title: `${updated.title} escalated`,
+        body: `Escalated by ${context.userName}: ${note?.trim()}`,
         severity: updated.severity as any,
         alertId: updated.id,
       });
@@ -189,8 +189,8 @@ export class AlertsService {
         organizationId: context.organizationId,
         recipientId: 'u-supervisor',
         type: 'ALERT_RESOLVED',
-        title: ${updated.title} resolved,
-        body: Resolved by : ,
+        title: `${updated.title} resolved`,
+        body: `Resolved by ${context.userName}: ${note?.trim()}`,
         severity: updated.severity as any,
         alertId: updated.id,
       });

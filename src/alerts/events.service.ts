@@ -220,7 +220,7 @@ export class EventsService {
         alertsCreated,
       };
     } catch (err: any) {
-      this.logger.error(Failed to process event : );
+      this.logger.error(`Failed to process event ${event.id}: ${String(err)}`);
 
       await this.prisma.operationalEvent.update({
         where: { id: event.id },

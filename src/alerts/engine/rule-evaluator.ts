@@ -44,16 +44,16 @@ export function conditionText(r: ConditionRule): string {
   const op = OPERATOR_SYMBOL[r.operator ?? 'GT'];
   const range =
     r.operator === 'BETWEEN'
-      ? ${r.thresholdValue ?? '?'} and 
-      : ${r.thresholdValue ?? '?'};
-  return ${r.fieldKey || '[field]'}  ;
+      ? `${r.thresholdValue ?? '?'} and ${r.thresholdMax ?? '?'}`
+      : `${r.thresholdValue ?? '?'}`;
+  return `${r.fieldKey || '[field]'} ${op} ${range}`;
 }
 
 export function alertMessage(
   rule: ConditionRule & { fieldKey: string },
   value: number,
 ): string {
-  return ${rule.fieldKey} =  (rule: );
+  return `${rule.fieldKey} = ${value} (rule: ${conditionText(rule)})`;
 }
 
 export function notifyOf(rule: {
