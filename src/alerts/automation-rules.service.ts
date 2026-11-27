@@ -4,6 +4,7 @@
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditLogsService } from './audit-logs.service.js';
+import { notifyOf } from './engine/rule-evaluator.js';
 import type { Page, TenantContext } from './types.js';
 import type {
   CreateRuleDto,
@@ -34,7 +35,7 @@ export class AutomationRulesService {
         thresholdValue: dto.thresholdValue,
         thresholdMax: dto.thresholdMax,
         severity: dto.severity,
-        notify: dto.notify ?? 'SUPERVISOR',
+        notify: notifyOf(dto),
         enabled: dto.enabled ?? true,
         cooldownMinutes: dto.cooldownMinutes ?? 15,
       },

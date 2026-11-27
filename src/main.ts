@@ -8,7 +8,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
   configureApp(app);
 
-  await app.listen(Number(process.env.PORT ?? 3000), '0.0.0.0');
+  const host = process.env.HOST ??
+    (process.env.NODE_ENV === 'development' ? '127.0.0.1' : '0.0.0.0');
+  await app.listen(Number(process.env.PORT ?? 3000), host);
 }
 
 void bootstrap();

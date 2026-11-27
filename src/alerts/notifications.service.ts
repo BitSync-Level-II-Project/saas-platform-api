@@ -11,6 +11,10 @@ import type {
   UpdatePreferencesDto,
 } from './dto/notification.dto.js';
 
+const severityOrder: Record<Severity, number> = {
+  INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4,
+};
+
 export interface CreateNotificationParams {
   organizationId: string;
   recipientId: string;
@@ -30,6 +34,19 @@ export class NotificationsService {
   ) {}
 
   async notify(params: CreateNotificationParams) {
+    const preferences = await this.prisma.notificationPreference.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: params.organizationId,
+          userId: params.recipientId,
+        },
+      },
+    });
+    if (preferences && (!preferences.inAppEnabled ||
+      severityOrder[params.severity ?? 'INFO'] < severityOrder[preferences.minSeverity])) {
+      return null;
+    }
+
     const notification = await this.prisma.appNotification.create({
       data: {
         organizationId: params.organizationId,
@@ -80,19 +97,17 @@ export class NotificationsService {
   }
 
   async markRead(context: TenantContext, id: string): Promise<{ ok: true }> {
-    const existing = await this.prisma.appNotification.findFirst({
+    const { count } = await this.prisma.appNotification.updateMany({
       where: {
         id,
         organizationId: context.organizationId,
+        recipientId: context.userId,
+        readAt: null,
       },
+      data: { readAt: new Date() },
     });
 
-    if (existing && !existing.readAt) {
-      await this.prisma.appNotification.update({
-        where: { id: existing.id },
-        data: { readAt: new Date() },
-      });
-
+    if (count) {
       await this.auditLogsService.log({
         organizationId: context.organizationId,
         actorId: context.userId,
@@ -123,28 +138,16 @@ export class NotificationsService {
   }
 
   async getPreferences(context: TenantContext) {
-    let prefs = await this.prisma.notificationPreference.findUnique({
+    return this.prisma.notificationPreference.upsert({
       where: {
         organizationId_userId: {
           organizationId: context.organizationId,
           userId: context.userId,
         },
       },
+      create: { organizationId: context.organizationId, userId: context.userId },
+      update: {},
     });
-
-    if (!prefs) {
-      prefs = await this.prisma.notificationPreference.create({
-        data: {
-          organizationId: context.organizationId,
-          userId: context.userId,
-          emailEnabled: true,
-          inAppEnabled: true,
-          minSeverity: 'INFO',
-        },
-      });
-    }
-
-    return prefs;
   }
 
   async updatePreferences(

@@ -7,49 +7,33 @@ export class ReferenceService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getReference(context: TenantContext) {
-    // 1. Load warehouses from DB
-    let warehouses: any[] = [];
-    try {
-      warehouses = await (this.prisma as any).warehouse.findMany({
-        where: { organizationId: context.organizationId },
-        orderBy: { name: 'asc' },
-      });
-    } catch {
-      warehouses = [];
-    }
-
-    // 2. Load templates from DB
-    let templates: any[] = [];
-    try {
-      templates = await (this.prisma as any).template.findMany({
-        where: { organizationId: context.organizationId },
-        orderBy: { name: 'asc' },
-      });
-    } catch {
-      templates = [];
-    }
+    const where = { organizationId: context.organizationId };
+    const [warehouses, templates] = await Promise.all([
+      this.prisma.warehouse.findMany({ where, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+      this.prisma.template.findMany({ where, orderBy: { name: 'asc' }, select: { id: true, name: true, fields: true } }),
+    ]);
 
     // Default seed fallback if DB hasn't been populated with other modules yet
     const sites =
       warehouses.length > 0
         ? warehouses.map((w) => ({ id: w.id, name: w.name }))
         : [
-            { id: 's-colombo', name: 'Colombo warehouse' },
-            { id: 's-kandy', name: 'Kandy warehouse' },
-            { id: 's-galle', name: 'Galle warehouse' },
+            { id: '00000000-0000-4000-8000-000000000001', name: 'Colombo warehouse' },
+            { id: '00000000-0000-4000-8000-000000000002', name: 'Kandy warehouse' },
+            { id: '00000000-0000-4000-8000-000000000003', name: 'Galle warehouse' },
           ];
 
     const locations = [
-      { id: 'l-machine', siteId: sites[0]?.id ?? 's-colombo', name: 'Machine room' },
-      { id: 'l-bay', siteId: sites[0]?.id ?? 's-colombo', name: 'Loading bay' },
-      { id: 'l-cold', siteId: sites[1]?.id ?? 's-kandy', name: 'Cold store' },
-      { id: 'l-pack', siteId: sites[2]?.id ?? 's-galle', name: 'Packing hall' },
+      { id: 'l-machine', siteId: sites[0].id, name: 'Machine room' },
+      { id: 'l-bay', siteId: sites[0].id, name: 'Loading bay' },
+      { id: 'l-cold', siteId: sites[1]?.id ?? sites[0].id, name: 'Cold store' },
+      { id: 'l-pack', siteId: sites[2]?.id ?? sites[0].id, name: 'Packing hall' },
     ];
 
     const devices = [
-      { id: 'd-phone01', siteId: sites[0]?.id ?? 's-colombo', locationId: 'l-machine', name: 'Phone-01' },
-      { id: 'd-phone02', siteId: sites[0]?.id ?? 's-colombo', locationId: 'l-bay', name: 'Phone-02' },
-      { id: 'd-phone03', siteId: sites[1]?.id ?? 's-kandy', locationId: 'l-cold', name: 'Phone-03' },
+      { id: 'd-phone01', siteId: sites[0].id, locationId: 'l-machine', name: 'Phone-01' },
+      { id: 'd-phone02', siteId: sites[0].id, locationId: 'l-bay', name: 'Phone-02' },
+      { id: 'd-phone03', siteId: sites[1]?.id ?? sites[0].id, locationId: 'l-cold', name: 'Phone-03' },
     ];
 
     const formattedTemplates =
@@ -57,11 +41,19 @@ export class ReferenceService {
         ? templates.map((t) => ({
             id: t.id,
             name: t.name,
-            fields: Array.isArray(t.fields) ? t.fields : [],
+            fields: Array.isArray(t.fields) ? t.fields.flatMap((field) => {
+              if (!field || typeof field !== 'object' || Array.isArray(field)) return [];
+              const key = field.key ?? field.id;
+              if (typeof key !== 'string') return [];
+              return [{
+                key, label: typeof field.label === 'string' ? field.label : key,
+                ...(typeof field.unit === 'string' ? { unit: field.unit } : {}),
+              }];
+            }) : [],
           }))
         : [
             {
-              id: 't-inspection',
+              id: '00000000-0000-4000-8000-000000000004',
               name: 'Equipment inspection',
               fields: [
                 { key: 'temperature', label: 'Temperature', unit: '°C' },
@@ -70,7 +62,7 @@ export class ReferenceService {
               ],
             },
             {
-              id: 't-telemetry',
+              id: '00000000-0000-4000-8000-000000000005',
               name: 'Stationed phone telemetry',
               fields: [
                 { key: 'temperature', label: 'Temperature', unit: '°C' },

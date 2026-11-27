@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuditOutcome, Page, TenantContext } from './types.js';
 import type { ListAuditLogsDto } from './dto/audit-log.dto.js';
@@ -19,6 +19,8 @@ export interface AuditLogEntry {
 
 @Injectable()
 export class AuditLogsService {
+  private readonly logger = new Logger(AuditLogsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async log(entry: AuditLogEntry) {
@@ -37,8 +39,11 @@ export class AuditLogsService {
           after: entry.after === undefined ? undefined : (entry.after as Prisma.InputJsonValue),
         },
       });
-    } catch {
-      // Audit log failures should not abort the main business transaction, but should be handled gracefully
+    } catch (error) {
+      this.logger.error(
+        `Audit write failed for ${entry.action} on ${entry.resourceType} ${entry.resourceId}`,
+        String(error),
+      );
       return null;
     }
   }

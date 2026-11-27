@@ -3,7 +3,7 @@
 **Author:** Member 05 — Nelithma (Index: 245057J)  
 **Team:** BitSync (ITM 01) — IS 2901 Software Development Project  
 **Client:** Nagarro  
-**Branch:** `feature/events-audit-api` (based on `origin/chore/api-foundation`)
+**Branch:** `feature/alerts-audit-api` (based on `origin/chore/api-foundation`)
 
 ---
 
@@ -55,9 +55,11 @@ src/alerts/
 ## 3. Database & Local Setup
 
 ### 3.1 Environment Configuration (`.env`)
-Create or update `.env` in the project root:
+Use Node.js 24 and a local PostgreSQL database. On first setup in PowerShell, run `Copy-Item .env.example .env` from the API folder. Set `DATABASE_URL` to your database name, role and password. Keep `.env` on your machine.
+
 ```env
 PORT=3000
+HOST=127.0.0.1
 FRONTEND_ORIGIN=http://localhost:5173
 DATABASE_URL="postgresql://sitetrace:YOUR_PASSWORD@127.0.0.1:5432/sitetrace_dev"
 NODE_ENV=development
@@ -65,8 +67,10 @@ ENABLE_ALERTS_DEV_API=true
 ENABLE_TEMPLATE_DEV_API=true
 ENABLE_WAREHOUSE_DEV_API=true
 DEV_ORGANIZATION_ID=local-demo-org
-DEV_USER_ID=local-demo-manager
+DEV_USER_ID=u-manager
 ```
+
+The default dashboard user is `u-manager`. High and critical rules notify this user and `u-supervisor` by default. Use the `x-user-id: u-supervisor` request header to inspect the supervisor inbox locally. The alerts routes require development mode and `ENABLE_ALERTS_DEV_API=true`.
 
 ### 3.2 Install Dependencies & Apply Migrations
 ```bash
@@ -87,6 +91,9 @@ npx prisma generate
 ```bash
 # Start development server with hot-reload
 npm run start:dev
+
+# In a second PowerShell window, check the running API
+# Invoke-RestMethod http://127.0.0.1:3000/api/v1/health
 
 # Run unit tests (Vitest)
 npm run test
@@ -140,11 +147,11 @@ npm run lint
 
 ## 6. Connecting to Your Frontend UI
 
-In your React UI project folder (`C:\Users\NN\OneDrive\Desktop\Nelithma- Alerts,Notification and Audit log`):
+In the React dashboard project folder:
 1. In the `.env` file, switch to the real backend:
    ```env
    VITE_USE_MOCK=false
-   VITE_API_URL=http://localhost:3000/api/v1
+   VITE_API_URL=http://127.0.0.1:3000/api/v1
    ```
 2. Start the backend:
    ```bash
