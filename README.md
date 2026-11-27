@@ -1,122 +1,157 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+﻿# SiteTrace Backend — Module 5: Events, Alerts, Notifications & Audit Trails
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Author:** Member 05 — Nelithma (Index: 245057J)  
+**Team:** BitSync (ITM 01) — IS 2901 Software Development Project  
+**Client:** Nagarro  
+**Branch:** `feature/events-audit-api` (based on `origin/chore/api-foundation`)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 1. Overview
+Module 5 provides the real-time event processing and operational governance spine for SiteTrace:
+- **Operational Event Ingestion**: Ingests field inspection and stationed phone telemetry data with idempotency (`clientEventId` deduplication).
+- **Dynamic Rule Engine**: Evaluates incoming readings against configurable multi-tenant conditions (`GT`, `GTE`, `LT`, `LTE`, `EQ`, `NEQ`, `BETWEEN`) with cooldown throttling (`cooldownMinutes`) to prevent alert flooding.
+- **Alert Lifecycle State Machine**: Tracks alert status (`NEW` -> `ACKNOWLEDGED` -> `ESCALATED` / `RESOLVED`), action logs, escalation levels, and mandatory notes.
+- **In-App Notifications**: Automatically dispatches alerts to targeted roles (`SUPERVISOR`, `MANAGER`), tracks unread badges, and supports user notification preferences.
+- **Immutable Operational Audit Trail**: Append-only log recording actor, role, action, resource, timestamp, and JSON diffs (`before` / `after`).
+- **Reference Data Provider**: Supplies warehouse sites, locations, stationed devices, and templates to immediately feed frontend UI dropdowns.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## SiteTrace API branch workflow
+## 2. Directory Structure
 
-- Start new backend feature branches from `chore/api-foundation`.
-- Push your changes to your own feature branch.
-- Open a pull request with `chore/api-foundation` as the base.
-- Ask a teammate to review the PR and wait for API CI to pass before merging.
-- Use `main` for tested project milestones.
-
-## Project setup
-
-```bash
-$ npm install
+```
+src/alerts/
+├── dto/
+│   ├── alert.dto.ts              # Validation DTOs for alerts and actions
+│   ├── audit-log.dto.ts          # Validation DTOs for audit logs
+│   ├── event.dto.ts              # Ingest event & result DTOs
+│   ├── notification.dto.ts       # Notification & preference DTOs
+│   └── rule.dto.ts               # Automation rule CRUD & filter DTOs
+├── engine/
+│   ├── rule-evaluator.ts         # Math operator comparisons, path lookup & message formatting
+│   └── rule-evaluator.spec.ts    # Unit test suite for evaluator engine
+├── alerts.controller.ts          # /api/v1/alerts endpoints
+├── alerts.service.ts             # Alert lifecycle state machine
+├── alerts.service.spec.ts        # Unit test suite for state machine
+├── alerts.module.ts              # NestJS Module definition
+├── automation-rules.controller.ts# /api/v1/automation-rules endpoints
+├── automation-rules.service.ts   # Rule management service
+├── events.controller.ts          # /api/v1/events endpoints
+├── events.service.ts             # Ingestion, deduplication & rule execution
+├── events.service.spec.ts        # Unit test suite for ingestion & cooldown
+├── notifications.controller.ts   # /api/v1/notifications endpoints
+├── notifications.service.ts      # In-app notification delivery & preferences
+├── audit-logs.controller.ts      # /api/v1/audit-logs endpoints
+├── audit-logs.service.ts         # Append-only audit logger
+├── reference.controller.ts       # /api/v1/reference endpoint
+├── reference.service.ts          # Aggregates sites, devices & templates
+├── tenant-context.service.ts     # Multi-tenant and user context resolver
+└── types.ts                      # Shared types aligning with frontend UI
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## 3. Database & Local Setup
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+### 3.1 Environment Configuration (`.env`)
+Create or update `.env` in the project root:
+```env
+PORT=3000
+FRONTEND_ORIGIN=http://localhost:5173
+DATABASE_URL="postgresql://sitetrace:YOUR_PASSWORD@127.0.0.1:5432/sitetrace_dev"
+NODE_ENV=development
+ENABLE_ALERTS_DEV_API=true
+ENABLE_TEMPLATE_DEV_API=true
+ENABLE_WAREHOUSE_DEV_API=true
+DEV_ORGANIZATION_ID=local-demo-org
+DEV_USER_ID=local-demo-manager
 ```
 
-## Run tests
-
+### 3.2 Install Dependencies & Apply Migrations
 ```bash
-# unit tests
-$ npm run test
+# 1. Install packages matching committed lockfile
+npm ci
 
-# e2e tests
-$ npm run test:e2e
+# 2. Apply migrations to your local PostgreSQL database
+npx prisma migrate deploy
 
-# test coverage
-$ npm run test:cov
+# 3. Generate Prisma client
+npx prisma generate
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## 4. Running the Application & Tests
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Start development server with hot-reload
+npm run start:dev
+
+# Run unit tests (Vitest)
+npm run test
+
+# Run build check
+npm run check
+
+# Run linter
+npm run lint
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
+## 5. REST API Documentation (`/api/v1`)
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+### Automation Rules (`/api/v1/automation-rules`)
+* `GET /api/v1/automation-rules`: List rules with pagination (`page`, `pageSize`), search, and filters (`siteId`, `templateId`, `enabled`).
+* `GET /api/v1/automation-rules/:id`: Get rule details.
+* `POST /api/v1/automation-rules`: Create rule.
+* `PATCH /api/v1/automation-rules/:id`: Update rule fields.
+* `PATCH /api/v1/automation-rules/:id/enabled`: Toggle rule active state (`{ enabled: boolean }`).
+* `DELETE /api/v1/automation-rules/:id`: Soft delete rule (`{ reason: string }`).
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+### Operational Events (`/api/v1/events`)
+* `POST /api/v1/events`: Ingest operational event from edge phone.
+  - Body: `{ clientEventId, sourceType, deviceId, siteId, locationId, templateId, payload, occurredAt }`
+  - Response: `{ id, duplicate: boolean, alertsCreated: string[] }`
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+### Alerts (`/api/v1/alerts`)
+* `GET /api/v1/alerts`: List alerts with pagination, status, severity, and site filters.
+* `GET /api/v1/alerts/:id`: Get full alert details with triggering rule, raw event, and action timeline.
+* `POST /api/v1/alerts/:id/acknowledge`: Transition alert from `NEW` to `ACKNOWLEDGED`.
+* `POST /api/v1/alerts/:id/escalate`: Transition alert to `ESCALATED` (requires `{ note }`, increments level, notifies manager).
+* `POST /api/v1/alerts/:id/resolve`: Transition alert to `RESOLVED` (requires `{ note }`, notifies supervisor).
 
-## Resources
+### Notifications (`/api/v1/notifications`)
+* `GET /api/v1/notifications`: List current user's notifications.
+* `GET /api/v1/notifications/unread-count`: Returns `{ count: number }`.
+* `PATCH /api/v1/notifications/:id/read`: Mark single notification as read.
+* `PATCH /api/v1/notifications/read-all`: Mark all notifications as read.
+* `GET /api/v1/notifications/preferences`: Get notification delivery preferences.
+* `PUT /api/v1/notifications/preferences`: Update preferences (`emailEnabled`, `inAppEnabled`, `minSeverity`).
 
-Check out a few resources that may come in handy when working with NestJS:
+### Audit Logs (`/api/v1/audit-logs`)
+* `GET /api/v1/audit-logs`: List immutable audit records with filters (`search`, `action`, `resourceType`, `page`, `pageSize`).
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Reference Data (`/api/v1/reference`)
+* `GET /api/v1/reference`: Returns current tenant, warehouses/sites, functional locations, stationed devices, and templates.
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 6. Connecting to Your Frontend UI
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+In your React UI project folder (`C:\Users\NN\OneDrive\Desktop\Nelithma- Alerts,Notification and Audit log`):
+1. In the `.env` file, switch to the real backend:
+   ```env
+   VITE_USE_MOCK=false
+   VITE_API_URL=http://localhost:3000/api/v1
+   ```
+2. Start the backend:
+   ```bash
+   npm run start:dev
+   ```
+3. Start the frontend:
+   ```bash
+   npm run dev
+   ```
+The frontend UI will now communicate directly with your NestJS backend and PostgreSQL database!
