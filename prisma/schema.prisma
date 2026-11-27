@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "esm"
@@ -76,4 +76,218 @@ model Warehouse {
   @@index([organizationId, status])
   @@index([organizationId, updatedAt])
   @@map("warehouses")
+}
+
+// ==========================================
+// Module 5: Alerts, Rules, Notifications & Audit Log
+// Member 05: Nelithma (245057J)
+// ==========================================
+
+enum Severity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  NEW
+  ACKNOWLEDGED
+  RESOLVED
+  ESCALATED
+}
+
+enum RuleOperator {
+  GT
+  GTE
+  LT
+  LTE
+  EQ
+  NEQ
+  BETWEEN
+}
+
+enum NotifyTarget {
+  SUPERVISOR
+  SUPERVISOR_MANAGER
+}
+
+enum EventSource {
+  FIELD_SUBMISSION
+  STATIONED_TELEMETRY
+  HEARTBEAT
+}
+
+enum EventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
+model AutomationRule {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String
+  createdById     String
+  name            String
+  description     String?      @default("")
+  siteId          String?      @db.Uuid
+  locationId      String?
+  templateId      String?      @db.Uuid
+  fieldKey        String
+  operator        RuleOperator
+  thresholdValue  Float?
+  thresholdMax    Float?
+  severity        Severity     @default(MEDIUM)
+  notify          NotifyTarget @default(SUPERVISOR)
+  enabled         Boolean      @default(true)
+  cooldownMinutes Int          @default(15)
+  deletedAt       DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
+
+  alerts Alert[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, enabled])
+  @@index([organizationId, siteId])
+  @@index([organizationId, updatedAt])
+  @@map("automation_rules")
+}
+
+model OperationalEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String
+  clientEventId  String
+  sourceType     EventSource  @default(STATIONED_TELEMETRY)
+  deviceId       String?
+  userId         String?
+  siteId         String?      @db.Uuid
+  locationId     String?
+  templateId     String?      @db.Uuid
+  payload        Json         @db.JsonB
+  status         EventStatus  @default(RECEIVED)
+  error          String?
+  occurredAt     DateTime     @default(now()) @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+
+  alerts Alert[]
+
+  @@unique([organizationId, clientEventId])
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, status])
+  @@map("operational_events")
+}
+
+model Alert {
+  id              String      @id @default(uuid()) @db.Uuid
+  organizationId  String
+  title           String
+  message         String
+  severity        Severity
+  status          AlertStatus @default(NEW)
+  ruleId          String      @db.Uuid
+  eventId         String      @db.Uuid
+  siteId          String?     @db.Uuid
+  locationId      String?
+  deviceId        String?
+  escalationLevel Int         @default(0)
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
+
+  rule          AutomationRule    @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  event         OperationalEvent  @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  actions       AlertAction[]
+  notifications AppNotification[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, severity])
+  @@index([organizationId, createdAt])
+  @@map("alerts")
+}
+
+model AlertAction {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String
+  alertId        String   @db.Uuid
+  action         String
+  actorId        String?
+  actorName      String   @default("System")
+  actorRole      String   @default("SYSTEM")
+  note           String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, alertId])
+  @@index([organizationId, createdAt])
+  @@map("alert_actions")
+}
+
+model AppNotification {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String
+  recipientId    String
+  type           String
+  title          String
+  body           String
+  severity       Severity?
+  alertId        String?            @db.Uuid
+  status         NotificationStatus @default(DELIVERED)
+  failureReason  String?
+  readAt         DateTime?          @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+
+  alert Alert? @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, recipientId, readAt])
+  @@index([organizationId, createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String
+  userId         String
+  emailEnabled   Boolean  @default(true)
+  inAppEnabled   Boolean  @default(true)
+  minSeverity    Severity @default(INFO)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([organizationId, userId])
+  @@map("notification_preferences")
+}
+
+model AuditLog {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String
+  actorId        String?
+  actorName      String       @default("System")
+  actorRole      String       @default("SYSTEM")
+  action         String
+  resourceType   String
+  resourceId     String
+  outcome        AuditOutcome @default(SUCCESS)
+  before         Json?        @db.JsonB
+  after          Json?        @db.JsonB
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([organizationId, action])
+  @@index([organizationId, resourceType])
+  @@index([organizationId, createdAt])
+  @@map("audit_logs")
 }
