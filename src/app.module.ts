@@ -5,6 +5,7 @@ import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 import { WarehousesModule } from './warehouses/warehouses.module.js';
+import { SubmissionsModule } from './submissions/submissions.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WarehousesModule } from './warehouses/warehouses.module.js';
     PrismaModule,
     TemplatesModule,
     WarehousesModule,
+    SubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
