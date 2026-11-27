@@ -1,0 +1,87 @@
+﻿import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { AuditOutcome, Page, TenantContext } from './types.js';
+import type { ListAuditLogsDto } from './dto/audit-log.dto.js';
+import type { Prisma } from '../generated/prisma/client.js';
+
+export interface AuditLogEntry {
+  organizationId: string;
+  actorId?: string;
+  actorName?: string;
+  actorRole?: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  outcome?: AuditOutcome;
+  before?: unknown;
+  after?: unknown;
+}
+
+@Injectable()
+export class AuditLogsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async log(entry: AuditLogEntry) {
+    try {
+      return await this.prisma.auditLog.create({
+        data: {
+          organizationId: entry.organizationId,
+          actorId: entry.actorId,
+          actorName: entry.actorName ?? 'System',
+          actorRole: entry.actorRole ?? 'SYSTEM',
+          action: entry.action,
+          resourceType: entry.resourceType,
+          resourceId: entry.resourceId,
+          outcome: entry.outcome ?? 'SUCCESS',
+          before: entry.before === undefined ? undefined : (entry.before as Prisma.InputJsonValue),
+          after: entry.after === undefined ? undefined : (entry.after as Prisma.InputJsonValue),
+        },
+      });
+    } catch {
+      // Audit log failures should not abort the main business transaction, but should be handled gracefully
+      return null;
+    }
+  }
+
+  async findAll(
+    context: TenantContext,
+    query: ListAuditLogsDto,
+  ): Promise<Page<any>> {
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.max(1, query.pageSize ?? query.limit ?? 20);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.AuditLogWhereInput = {
+      organizationId: context.organizationId,
+      ...(query.action ? { action: query.action } : {}),
+      ...(query.resourceType ? { resourceType: query.resourceType } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { action: { contains: query.search, mode: 'insensitive' as const } },
+              { actorName: { contains: query.search, mode: 'insensitive' as const } },
+              { resourceId: { contains: query.search, mode: 'insensitive' as const } },
+              { resourceType: { contains: query.search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+    };
+  }
+}
