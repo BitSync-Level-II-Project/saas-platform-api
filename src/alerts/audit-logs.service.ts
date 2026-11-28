@@ -23,9 +23,9 @@ export class AuditLogsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async log(entry: AuditLogEntry) {
+  async log(entry: AuditLogEntry, transaction?: Prisma.TransactionClient) {
     try {
-      return await this.prisma.auditLog.create({
+      return await (transaction ?? this.prisma).auditLog.create({
         data: {
           organizationId: entry.organizationId,
           actorId: entry.actorId,
@@ -40,6 +40,7 @@ export class AuditLogsService {
         },
       });
     } catch (error) {
+      if (transaction) throw error;
       this.logger.error(
         `Audit write failed for ${entry.action} on ${entry.resourceType} ${entry.resourceId}`,
         String(error),

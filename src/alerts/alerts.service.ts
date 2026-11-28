@@ -130,6 +130,13 @@ export class AlertsService {
       throw new BadRequestException('A reason is required when escalating an alert.');
     }
 
+    const actionCode =
+      action === 'acknowledge'
+        ? 'ALERT_ACKNOWLEDGED'
+        : action === 'escalate'
+          ? 'ALERT_ESCALATED'
+          : 'ALERT_RESOLVED';
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedAlert = await tx.alert.update({
         where: { id: alert.id, status: alert.status },
@@ -156,27 +163,21 @@ export class AlertsService {
         },
       });
 
+      await this.auditLogsService.log({
+        organizationId: context.organizationId,
+        actorId: context.userId,
+        actorName: context.userName,
+        actorRole: context.userRole,
+        action: actionCode,
+        resourceType: 'Alert',
+        resourceId: alert.id,
+        before: alert,
+        after: updatedAlert,
+      }, tx);
+
       return updatedAlert;
     });
 
-    const actionCode =
-      action === 'acknowledge'
-        ? 'ALERT_ACKNOWLEDGED'
-        : action === 'escalate'
-          ? 'ALERT_ESCALATED'
-          : 'ALERT_RESOLVED';
-
-    await this.auditLogsService.log({
-      organizationId: context.organizationId,
-      actorId: context.userId,
-      actorName: context.userName,
-      actorRole: context.userRole,
-      action: actionCode,
-      resourceType: 'Alert',
-      resourceId: alert.id,
-      before: alert,
-      after: updated,
-    });
 
     // Send notifications on escalation or resolution
     if (action === 'escalate') {

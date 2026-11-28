@@ -72,6 +72,7 @@ describe('AlertsService State Machine', () => {
     );
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'ALERT_ACKNOWLEDGED' }),
+      mockPrisma,
     );
   });
 
@@ -156,6 +157,7 @@ describe('AlertsService State Machine', () => {
     expect(result.status).toBe('RESOLVED');
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'ALERT_RESOLVED' }),
+      mockPrisma,
     );
   });
 
