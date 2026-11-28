@@ -89,21 +89,24 @@ npx prisma generate
 ## 4. Running the Application & Tests
 
 ```bash
-# Start development server with hot-reload
+# Build and run unit tests
+npm run build
+npm test
+
+# Run the HTTP tests against a dedicated local PostgreSQL test database.
+# Apply the migrations to that database before running the suite.
+npm run test:e2e
+
+# Start the development server on 127.0.0.1
 npm run start:dev
-
-# In a second PowerShell window, check the running API
-# Invoke-RestMethod http://127.0.0.1:3000/api/v1/health
-
-# Run unit tests (Vitest)
-npm run test
-
-# Run build check
-npm run check
 
 # Run linter
 npm run lint
 ```
+
+For the HTTP tests, point `DATABASE_URL` at a dedicated local PostgreSQL database and run `npx prisma migrate deploy` with that same setting. The suite exercises application health, templates, and the Member 5 alert workflow, including a simulated reading, duplicate detection, notification delivery, and audit history.
+
+With the development server running, check it from a second PowerShell window with `Invoke-RestMethod http://127.0.0.1:3000/api/v1/health`. The example configuration uses loopback and allows the local dashboard at `http://localhost:5173`.
 
 ---
 
