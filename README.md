@@ -1,122 +1,123 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# SiteTrace API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+SiteTrace is a field operations platform for managing warehouses, assigning work, collecting structured data, and reviewing results. This repository provides the shared NestJS backend for the web and mobile clients. It uses TypeScript, Prisma, and PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+| Repository | Role | Integration branch |
+| --- | --- | --- |
+| [SiteTrace Web](https://github.com/BitSync-Level-II-Project/saas-platform-web) | Browser workspace for managers and supervisors | `chore/web-foundation` |
+| [SiteTrace API](https://github.com/BitSync-Level-II-Project/saas-platform-api) | Shared API, data model, and database migrations | `chore/api-foundation` |
+| [SiteTrace Mobile](https://github.com/BitSync-Level-II-Project/saas-platform-mobile) | Worker task and form capture app | `main` |
 
-## Description
+## Available on the API foundation
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Area | Current behavior |
+| --- | --- |
+| Templates | List, create and update drafts, publish by draft revision, and retrieve immutable published snapshots. |
+| Warehouses and locations | Warehouse CRUD, nested location CRUD, and warehouse location counts. The foundation includes the PostgreSQL location migration. |
+| Submissions | Storage models for submissions, attempts, reviews, and validation/retry helpers are present. Authenticated submission and review routes are not yet available on the foundation branch. |
+| Tasks and authentication | Worker task lookup, assignment integration, and authenticated manager and worker flows are still being integrated. |
 
-## SiteTrace API branch workflow
+The template, warehouse, and location routes use a local development context. The development flags and IDs below are for local use only; they are not user authentication or production permissions.
 
-- Start new backend feature branches from `chore/api-foundation`.
-- Push your changes to your own feature branch.
-- Open a pull request with `chore/api-foundation` as the base.
-- Ask a teammate to review the PR and wait for API CI to pass before merging.
-- Use `main` for tested project milestones.
+## Run locally
 
-## Project setup
+**Prerequisites:** Git, Node.js 24 (see [`.nvmrc`](./.nvmrc)), npm, and a running local PostgreSQL instance. CI uses PostgreSQL 17; Docker is not required for local development.
 
 ```bash
-$ npm install
+git clone --branch chore/api-foundation https://github.com/BitSync-Level-II-Project/saas-platform-api.git
+cd saas-platform-api
+npm ci
 ```
 
-## Compile and run the project
+Create a local PostgreSQL login and an empty database it owns. If you already have a local database and credentials, reuse them and skip the creation commands. For a fresh setup, open `psql -U postgres -d postgres` (replace `postgres` after `-U` if you use a different local administrator) and run:
+
+```sql
+CREATE ROLE sitetrace LOGIN;
+\password sitetrace
+CREATE DATABASE sitetrace_dev OWNER sitetrace;
+CREATE DATABASE sitetrace_test OWNER sitetrace;
+```
+
+In the API repo root, copy [`.env.example`](./.env.example) to `.env` and update `DATABASE_URL` to match your login and database. The table lists the local defaults.
+
+| Variable | Local setting |
+| --- | --- |
+| `DATABASE_URL` | `postgresql://sitetrace:YOUR_PASSWORD@127.0.0.1:5432/sitetrace_dev` |
+| `PORT` | `3000` |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` (must match the actual web origin) |
+| `NODE_ENV` | `development` |
+| `ENABLE_TEMPLATE_DEV_API` | `true` to enable the local template routes |
+| `ENABLE_WAREHOUSE_DEV_API` | `true` to enable the local warehouse and location routes |
+| `DEV_ORGANIZATION_ID` | `local-demo-org` |
+| `DEV_USER_ID` | `local-demo-manager` |
+
+Replace `YOUR_PASSWORD` with your local password. URL-encode reserved characters in the password and do not commit `.env`. Apply the migrations already committed to the branch, generate the Prisma client, then start the server:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx prisma migrate deploy
+npm run prisma:generate
+npm run start:dev
 ```
 
-## Run tests
+The base URL is `http://localhost:3000/api/v1`. Open [the health route](http://localhost:3000/api/v1/health) to check startup. If startup fails, check the PostgreSQL service and connection settings first. If health works but development routes are missing, check the development flags and restart the API.
+
+## HTTP routes
+
+The paths below are relative to `/api/v1`.
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| GET | `/health` | Service health |
+| GET, POST | `/templates` | List templates or create a draft |
+| GET, PATCH | `/templates/:id` | Read template details or save a draft revision |
+| POST | `/templates/:id/publish` | Publish the current draft revision |
+| GET | `/templates/:id/published` | Read the published snapshot |
+| GET, POST | `/warehouses` | List or create warehouses |
+| GET, PATCH, DELETE | `/warehouses/:id` | Read, update, or delete a warehouse |
+| GET, POST | `/warehouses/:warehouseId/locations` | List or create locations within a warehouse |
+| GET, PATCH, DELETE | `/warehouses/:warehouseId/locations/:id` | Read, update, or delete a location |
+
+- [Template verification and Postman instructions](./docs/template-api-verification.md) · [Postman collection](./postman/SiteTrace-Templates.postman_collection.json)
+- [Warehouse and location verification](./docs/warehouse-location-api-verification.md)
+- [Worker mobile API contract](./docs/worker-mobile-api-contract.md) and [submission API contract](./docs/submission-api-contract.md) describe proposed flows. A contract in this repository does not mean its endpoints are deployed or runnable on this branch.
+
+## Tests
+
+Set `DATABASE_URL` to the separate local `sitetrace_test` database before applying migrations and running end-to-end tests. In a separate PowerShell terminal, replace the password in the example and set the variable for that terminal only:
+
+```powershell
+$env:DATABASE_URL = 'postgresql://sitetrace:YOUR_PASSWORD@127.0.0.1:5432/sitetrace_test'
+```
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma migrate deploy
+npm run check:all
 ```
 
-## Deployment
+Close the test terminal before starting the development API from a fresh one, so it reads the development database URL from `.env` again.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+| Command | What it checks |
+| --- | --- |
+| `npm run check` | Generate the Prisma client and build the NestJS app |
+| `npm run lint` | Lint API sources and tests |
+| `npm test` | Run the unit tests |
+| `npm run test:e2e` | Run the end-to-end tests against PostgreSQL |
+| `npm run check:all` | Run build, lint, unit tests, and end-to-end tests |
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+GitHub [API CI](./.github/workflows/ci.yml) uses its own PostgreSQL service and applies migrations before database tests. On Windows PowerShell, use `npm.cmd` and `npx.cmd` if the PowerShell wrappers are blocked.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+## Project layout
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+| Path | Purpose |
+| --- | --- |
+| [`src/templates/`](./src/templates), [`src/warehouses/`](./src/warehouses), [`src/locations/`](./src/locations) | HTTP controllers, business logic, and request types |
+| [`src/submissions/`](./src/submissions) | Submission validation, workflow, and retry logic |
+| [`src/prisma/`](./src/prisma) | Prisma database connection for NestJS |
+| [`prisma/`](./prisma) | Database schema and committed migrations |
+| [`test/`](./test) | End-to-end specifications |
 
-## Observability
+## Contribute
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Use your existing API feature branch and target `chore/api-foundation` with your PR. Use `main` for reviewed project milestones. Include the Jira issue, affected routes, migration details, and test evidence. If a change relies on another PR or uses identity fixtures, describe that explicitly. Review data model changes alongside their migration and both client contracts where applicable.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+[BitSync Jira board](https://gunasekarapdvp.atlassian.net/jira/software/projects/SCRUM/boards/1)
