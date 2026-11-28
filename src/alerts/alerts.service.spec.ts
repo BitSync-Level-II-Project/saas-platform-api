@@ -168,4 +168,17 @@ describe('AlertsService State Machine', () => {
       alertsService.actOnAlert(mockContext, 'non-existent', 'acknowledge'),
     ).rejects.toThrow(NotFoundException);
   });
+
+  it('propagates the audit write failure before sending a resolution notification', async () => {
+    mockPrisma.alert.findFirst.mockResolvedValue({ id: 'alt-1', status: 'NEW' });
+    mockPrisma.alert.update.mockResolvedValue({ id: 'alt-1', status: 'RESOLVED' });
+    const failure = new Error('audit insert failed');
+    mockAudit.log.mockRejectedValue(failure);
+
+    await expect(
+      alertsService.actOnAlert(mockContext, 'alt-1', 'resolve', 'Sensor checked'),
+    ).rejects.toBe(failure);
+    expect(mockPrisma.$transaction).toHaveBeenCalledOnce();
+    expect(mockNotifications.notify).not.toHaveBeenCalled();
+  });
 });
