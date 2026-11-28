@@ -4,6 +4,7 @@
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditLogsService } from './audit-logs.service.js';
 import { NotificationsService } from './notifications.service.js';
@@ -14,7 +15,6 @@ import type {
   TenantContext,
 } from './types.js';
 import type { ListAlertsDto } from './dto/alert.dto.js';
-import type { Prisma } from '../generated/prisma/client.js';
 
 const ALLOWED_MOVES: Record<
   AlertActionName,
@@ -132,11 +132,16 @@ export class AlertsService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedAlert = await tx.alert.update({
-        where: { id: alert.id },
+        where: { id: alert.id, status: alert.status },
         data: {
           status: move.to,
           ...(action === 'escalate' ? { escalationLevel: { increment: 1 } } : {}),
         },
+      }).catch((error: unknown) => {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+          throw new ConflictException('The alert changed. Refresh it and try again.');
+        }
+        throw error;
       });
 
       await tx.alertAction.create({
